@@ -19,6 +19,7 @@ namespace BinanceExchange.API.Websockets
     /// </summary>
     public class AbstractBinanceWebSocketClient
     {
+        private readonly object sync = new object();
         protected SslProtocols SupportedProtocols { get; } = SslProtocols.Tls12 | SslProtocols.Tls11 | SslProtocols.Tls;
 
         /// <summary> 
@@ -224,9 +225,12 @@ namespace BinanceExchange.API.Websockets
                 };
             };
 
-            if (!ActiveWebSockets.ContainsKey(websocket.Id))
+            lock (sync)
             {
-                ActiveWebSockets.Add(websocket.Id, websocket);
+                if (!ActiveWebSockets.ContainsKey(websocket.Id))
+                {
+                    ActiveWebSockets.Add(websocket.Id, websocket);
+                }
             }
 
             AllSockets.Add(websocket);
@@ -263,12 +267,16 @@ namespace BinanceExchange.API.Websockets
                 };
             };
 
-            if (!ActiveWebSockets.ContainsKey(websocket.Id))
+            lock (sync)
             {
-                ActiveWebSockets.Add(websocket.Id, websocket);
+                if (!ActiveWebSockets.ContainsKey(websocket.Id))
+                {
+                    ActiveWebSockets.Add(websocket.Id, websocket);
+                }
+
+                AllSockets.Add(websocket);
             }
 
-            AllSockets.Add(websocket);
             websocket.SslConfiguration.EnabledSslProtocols = SupportedProtocols;
             websocket.Connect();
 
@@ -282,18 +290,21 @@ namespace BinanceExchange.API.Websockets
         /// <param name="fromError"></param>
         public void CloseWebSocketInstance(Guid id, bool fromError = false)
         {
-            if (ActiveWebSockets.ContainsKey(id))
+            lock (sync)
             {
-                var ws = ActiveWebSockets[id];
-                ActiveWebSockets.Remove(id);
-                if (!fromError)
+                if (ActiveWebSockets.ContainsKey(id))
                 {
-                    ws.Close(CloseStatusCode.PolicyViolation);
+                    var ws = ActiveWebSockets[id];
+                    ActiveWebSockets.Remove(id);
+                    if (!fromError)
+                    {
+                        ws.Close(CloseStatusCode.PolicyViolation);
+                    }
                 }
-            }
-            else
-            {
-                throw new Exception($"No Websocket exists with the Id {id.ToString()}");
+                else
+                {
+                    throw new Exception($"No Websocket exists with the Id {id.ToString()}");
+                }
             }
         }
 
@@ -302,14 +313,17 @@ namespace BinanceExchange.API.Websockets
         /// </summary>
         public bool IsAlive(Guid id)
         {
-            if (ActiveWebSockets.ContainsKey(id))
+            lock (sync)
             {
-                var ws = ActiveWebSockets[id];
-                return ws.IsAlive;
-            }
-            else
-            {
-                throw new Exception($"No Websocket exists with the Id {id.ToString()}");
+                if (ActiveWebSockets.ContainsKey(id))
+                {
+                    var ws = ActiveWebSockets[id];
+                    return ws.IsAlive;
+                }
+                else
+                {
+                    throw new Exception($"No Websocket exists with the Id {id.ToString()}");
+                }
             }
         }
     }
