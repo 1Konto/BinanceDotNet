@@ -11,6 +11,8 @@
    - All Market Symbol Ticker
 - Fix Filter Type for Symbols
 
+This is my super cool change
+
 ## 4.6.0
 **Release Date: 6/20/2018**
 - Fixed SSL Issues
